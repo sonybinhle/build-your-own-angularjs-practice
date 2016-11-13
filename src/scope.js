@@ -8,6 +8,7 @@ function Scope() {
     this.$$asyncQueue = [];
     this.$$applyAsyncQueue = [];
     this.$$applyAsyncId = null;
+    this.$$postDigestQueue = [];
     this.$$phase = null;
 }
 
@@ -78,8 +79,12 @@ Scope.prototype.$digest = function () {
 
     do {
         while (this.$$asyncQueue.length) {
-            var asyncTask = this.$$asyncQueue.shift();
-            asyncTask.scope.$eval(asyncTask.expression);
+            try {
+                var asyncTask = this.$$asyncQueue.shift();
+                asyncTask.scope.$eval(asyncTask.expression);
+            } catch (e) {
+                console.error(e);
+            }
         }
         dirty = this.$$digestOnce();
         if ((dirty || this.$$asyncQueue.length) && !(ttl--)) {
@@ -87,6 +92,13 @@ Scope.prototype.$digest = function () {
         }
     } while (dirty|| this.$$asyncQueue.length);
     this.$clearPhase();
+    while (this.$$postDigestQueue.length) {
+        try {
+            this.$$postDigestQueue.shift()();
+        } catch (e) {
+            console.error(e);
+        }
+    }
 };
 
 Scope.prototype.$$areEqual = function(newValue, oldValue, valueEq) {
@@ -107,6 +119,8 @@ Scope.prototype.$apply = function(expr) {
     try {
         this.$beginPhase('$apply');
         return this.$eval(expr);
+    } catch (e) {
+        console.log(e);
     } finally {
         this.$clearPhase();
         this.$digest();
@@ -150,9 +164,17 @@ Scope.prototype.$applyAsync = function(expr) {
 
 Scope.prototype.$$flushApplyAsync = function() {
     while (this.$$applyAsyncQueue.length) {
-        this.$$applyAsyncQueue.shift()();
+        try {
+            this.$$applyAsyncQueue.shift()();
+        } catch (e) {
+            console.error(e);
+        }
     }
     this.$$applyAsyncId = null;
+};
+
+Scope.prototype.$$postDigest = function(fn) {
+    this.$$postDigestQueue.push(fn);
 };
 
 module.exports = Scope;
