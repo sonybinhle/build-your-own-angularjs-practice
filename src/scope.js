@@ -393,21 +393,56 @@ Scope.prototype.$on = function(eventName, listener) {
 };
 
 Scope.prototype.$emit = function(eventName) {
-    var additionalArgs = _.tail(arguments);
-    return this.$$fireEventOnScope(eventName, additionalArgs);
+    var propagationStopped = false;
+    var event = {
+        name: eventName,
+        targetScope: this,
+        stopPropagation: function() {
+            propagationStopped = true;
+        },
+        preventDefault: function() {
+            event.defaultPrevented = true;
+        }
+    };
+    var listenerArgs = [event].concat(_.tail(arguments));
+    var currentScope = this;
+
+    while (currentScope && !propagationStopped) {
+        event.currentScope = currentScope;
+        currentScope.$$fireEventOnScope(eventName, listenerArgs);
+        currentScope = currentScope.$parent;
+    }
+
+    event.currentScope = null;
+
+    return event;
 };
 
 Scope.prototype.$broadcast = function(eventName) {
-    var additionalArgs = _.tail(arguments);
-    return this.$$fireEventOnScope(eventName, additionalArgs);
+    var event = {
+        name: eventName,
+        targetScope: this,
+        preventDefault: function() {
+            event.defaultPrevented = true;
+        }
+    };
+    var listenerArgs = [event].concat(_.tail(arguments));
+
+    this.$$everyScope(function(scope) {
+        event.currentScope = scope;
+        scope.$$fireEventOnScope(eventName, listenerArgs);
+        return true;
+    });
+
+    event.currentScope = null;
+
+    return event;
 };
 
-Scope.prototype.$$fireEventOnScope = function(eventName, additionalArgs) {
-    var event = {name: eventName};
-    var listenerArgs = [event].concat(additionalArgs);
+Scope.prototype.$$fireEventOnScope = function(eventName, listenerArgs) {
     var listeners = this.$$listeners[eventName] || [];
-
     var i = 0;
+
     while (i < listeners.length) {
         if (listeners[i] === null) {
             listeners.splice(i, 1);
