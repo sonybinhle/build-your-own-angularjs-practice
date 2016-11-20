@@ -88,7 +88,6 @@ Scope.prototype.$watchGroup = function(watchFns, listenerFn) {
     };
 };
 
-
 Scope.prototype.$$digestOnce = function () {
     var dirty;
     var continueLoop = true;
@@ -272,6 +271,7 @@ Scope.prototype.$$everyScope = function(fn) {
 };
 
 Scope.prototype.$destroy = function() {
+    this.$broadcast('$destroy');
     if (this.$parent) {
         var siblings = this.$parent.$$children;
         var indexOfThis = siblings.indexOf(this);
@@ -280,6 +280,7 @@ Scope.prototype.$destroy = function() {
         }
     }
     this.$$watchers = null;
+    this.$$listeners = {};
 };
 
 Scope.prototype.$watchCollection = function(watchFn, listenerFn) {
@@ -447,7 +448,11 @@ Scope.prototype.$$fireEventOnScope = function(eventName, listenerArgs) {
         if (listeners[i] === null) {
             listeners.splice(i, 1);
         } else {
-            listeners[i].apply(null, listenerArgs);
+            try {
+                listeners[i].apply(null, listenerArgs);
+            } catch (e) {
+                console.error(e);
+            }
             i++;
         }
     }
