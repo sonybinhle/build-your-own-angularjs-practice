@@ -2,6 +2,7 @@
 
 var Scope = require('../src/scope');
 var _ = require('lodash');
+var register = require('../src/filter').register;
 
 describe('Scope', function() {
     it('can be constructed and used as an object', function() {
@@ -348,6 +349,103 @@ describe('Scope', function() {
             scope.$watch('[1, 2, 3]', function() {});
             scope.$digest();
             expect(scope.$$watchers.length).toBe(0);
+        });
+
+        it('accepts one-time watches', function() {
+            var theValue;
+            scope.aValue = 42;
+            scope.$watch('::aValue', function(newValue, oldValue, scope) {
+                theValue = newValue;
+            });
+            scope.$digest();
+            expect(theValue).toBe(42);
+        });
+
+        it('removes one-time watches after first invocation', function() {
+            scope.aValue = 42;
+            scope.$watch('::aValue', function() { });
+            scope.$digest();
+            expect(scope.$$watchers.length).toBe(0);
+        });
+
+        it('does not remove one-time-watches until value is de ned', function() {
+            scope.$watch('::aValue', function() { });
+            scope.$digest();
+            expect(scope.$$watchers.length).toBe(1);
+            scope.aValue = 42;
+            scope.$digest();
+            expect(scope.$$watchers.length).toBe(0);
+        });
+
+        it('does not remove one-time-watches until value stays defined', function() {
+            scope.aValue = 42;
+            scope.$watch('::aValue', function() { });
+            var unwatchDeleter = scope.$watch('aValue', function() {
+                delete scope.aValue;
+            });
+            scope.$digest();
+            expect(scope.$$watchers.length).toBe(2);
+            scope.aValue = 42;
+            unwatchDeleter();
+            scope.$digest();
+            expect(scope.$$watchers.length).toBe(0);
+        });
+
+        it('does not remove one-time watches before all array items defined', function() {
+            scope.$watch('::[1, 2, aValue]', function() { }, true);
+            scope.$digest();
+            expect(scope.$$watchers.length).toBe(1);
+            scope.aValue = 3;
+            scope.$digest();
+            expect(scope.$$watchers.length).toBe(0);
+        });
+
+        it('does not remove one-time watches before all object vals defined', function() {
+            scope.$watch('::{a: 1, b: aValue}', function() { }, true);
+            scope.$digest();
+            expect(scope.$$watchers.length).toBe(1);
+            scope.aValue = 3;
+            scope.$digest();
+            expect(scope.$$watchers.length).toBe(0);
+        });
+
+        it('does not re-evaluate an array if its contents do not change', function() {
+            var values = [];
+            scope.a = 1;
+            scope.b = 2;
+            scope.c = 3;
+            scope.$watch('[a, b, c]', function(value) {
+                values.push(value);
+            });
+            scope.$digest();
+            expect(values.length).toBe(1);
+            expect(values[0]).toEqual([1, 2, 3]);
+            scope.$digest();
+            expect(values.length).toBe(1);
+            scope.c = 4;
+            scope.$digest();
+            expect(values.length).toBe(2);
+            expect(values[1]).toEqual([1, 2, 4]);
+        });
+
+        it('allows $stateful filter value to change over time', function(done) {
+            register('withTime', function() {
+                return _.extend(function(v) {
+                    return new Date().toISOString() + ': ' + v;
+                }, {
+                    $stateful: true
+                });
+            });
+            var listenerSpy = jasmine.createSpy();
+            scope.$watch('42 | withTime', listenerSpy);
+            scope.$digest();
+            var firstValue = listenerSpy.calls.mostRecent().args[0];
+            setTimeout(function() {
+                scope.$digest();
+                var secondValue = listenerSpy.calls.mostRecent().args[0];
+                expect(secondValue).not.toEqual(firstValue);
+                done();
+            }, 100);
         });
     });
 
