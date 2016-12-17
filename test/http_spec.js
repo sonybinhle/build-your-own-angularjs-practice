@@ -1,18 +1,20 @@
 'use strict';
 
+var _ = require('lodash');
 var sinon = require('sinon');
 var publishExternalAPI = require('../src/angular_public');
 var createInjector = require('../src/injector');
 
 describe('$http', function() {
 
-    var $http;
+    var $http, $rootScope;
     var xhr, requests;
 
     beforeEach(function() {
         publishExternalAPI();
         var injector = createInjector(['ng']);
         $http = injector.get('$http');
+        $rootScope = injector.get('$rootScope');
     });
 
     beforeEach(function() {
@@ -43,6 +45,7 @@ describe('$http', function() {
             url: 'http://teropa.info',
             data: 'hello'
         });
+        $rootScope.$apply();
         expect(requests.length).toBe(1);
         expect(requests[0].method).toBe('POST');
         expect(requests[0].url).toBe('http://teropa.info');
@@ -59,6 +62,7 @@ describe('$http', function() {
         $http(requestConfig).then(function(r) {
             response = r;
         });
+        $rootScope.$apply();
         requests[0].respond(200, {}, 'Hello');
         expect(response).toBeDefined();
         expect(response.status).toBe(200);
@@ -76,6 +80,7 @@ describe('$http', function() {
         $http(requestConfig).catch(function(r) {
             response = r;
         });
+        $rootScope.$apply();
         requests[0].respond(401, {}, 'Fail');
         expect(response).toBeDefined();
         expect(response.status).toBe(401);
@@ -93,6 +98,7 @@ describe('$http', function() {
         $http(requestConfig).catch(function(r) {
             response = r;
         });
+        $rootScope.$apply();
         requests[0].onerror();
         expect(response).toBeDefined();
         expect(response.status).toBe(0);
@@ -104,6 +110,7 @@ describe('$http', function() {
         $http({
             url: 'http://teropa.info'
         });
+        $rootScope.$apply();
         expect(requests.length).toBe(1);
         expect(requests[0].method).toBe('GET');
     });
@@ -116,6 +123,7 @@ describe('$http', function() {
                 'Cache-Control': 'no-cache'
             }
         });
+        $rootScope.$apply();
         expect(requests.length).toBe(1);
         expect(requests[0].requestHeaders.Accept).toBe('text/plain');
         expect(requests[0].requestHeaders['Cache-Control']).toBe('no-cache');
@@ -125,6 +133,7 @@ describe('$http', function() {
         $http({
             url: 'http://teropa.info'
         });
+        $rootScope.$apply();
         expect(requests.length).toBe(1);
         expect(requests[0].requestHeaders.Accept).toBe(
             'application/json, text/plain, */*');
@@ -136,6 +145,7 @@ describe('$http', function() {
             url: 'http://teropa.info',
             data: '42'
         });
+        $rootScope.$apply();
         expect(requests.length).toBe(1);
         expect(requests[0].requestHeaders['Content-Type']).toBe(
             'application/json;charset=utf-8');
@@ -148,6 +158,7 @@ describe('$http', function() {
             url: 'http://teropa.info',
             data: '42'
         });
+        $rootScope.$apply();
         expect(requests.length).toBe(1);
         expect(requests[0].requestHeaders['Content-Type']).toBe(
             'text/plain;charset=utf-8');
@@ -158,11 +169,13 @@ describe('$http', function() {
             $httpProvider.defaults.headers.post['Content-Type'] = 'text/plain;charset=utf-8';
         }]);
         $http = injector.get('$http');
+        $rootScope = injector.get('$rootScope');
         $http({
             method: 'POST',
             url: 'http://teropa.info',
             data: '42'
         });
+        $rootScope.$apply();
         expect(requests.length).toBe(1);
         expect(requests[0].requestHeaders['Content-Type']).toBe(
             'text/plain;charset=utf-8');
@@ -177,6 +190,7 @@ describe('$http', function() {
                 'content-type': 'text/plain;charset=utf-8'
             }
         });
+        $rootScope.$apply();
         expect(requests.length).toBe(1);
         expect(requests[0].requestHeaders['content-type']).toBe(
             'text/plain;charset=utf-8');
@@ -191,6 +205,7 @@ describe('$http', function() {
                 'Content-Type': 'application/json;charset=utf-8'
             }
         });
+        $rootScope.$apply();
         expect(requests.length).toBe(1);
         expect(requests[0].requestHeaders['Content-Type']).not.toBe(
             'application/json;charset=utf-8');
@@ -206,6 +221,7 @@ describe('$http', function() {
             data: 42
         };
         $http(request);
+        $rootScope.$apply();
         expect(contentTypeSpy).toHaveBeenCalledWith(request);
         expect(requests[0].requestHeaders['Content-Type']).toBe(
             'text/plain;charset=utf-8');
@@ -220,6 +236,7 @@ describe('$http', function() {
             data: 42
         };
         $http(request);
+        $rootScope.$apply();
         expect(cacheControlSpy).toHaveBeenCalledWith(request);
         expect(requests[0].requestHeaders['Cache-Control']).toBeUndefined();
     });
@@ -233,6 +250,7 @@ describe('$http', function() {
         }).then(function(r) {
             response = r;
         });
+        $rootScope.$apply();
         requests[0].respond(200, {'Content-Type': 'text/plain'}, 'Hello');
         expect(response.headers).toBeDefined();
         expect(response.headers instanceof Function).toBe(true);
@@ -249,6 +267,7 @@ describe('$http', function() {
         }).then(function(r) {
             response = r;
         });
+        $rootScope.$apply();
         requests[0].respond(200, {'Content-Type': 'text/plain'}, 'Hello');
         expect(response.headers()).toEqual({'content-type': 'text/plain'});
     });
@@ -260,6 +279,7 @@ describe('$http', function() {
             data: 42,
             withCredentials: true
         });
+        $rootScope.$apply();
         expect(requests[0].withCredentials).toBe(true);
     });
 
@@ -270,6 +290,7 @@ describe('$http', function() {
             url: 'http://teropa.info',
             data: 42
         });
+        $rootScope.$apply();
         expect(requests[0].withCredentials).toBe(true);
     });
 
@@ -282,6 +303,7 @@ describe('$http', function() {
                 return '*' + data + '*';
             }
         });
+        $rootScope.$apply();
         expect(requests[0].requestBody).toBe('*42*');
     });
 
@@ -296,6 +318,7 @@ describe('$http', function() {
                 return '-' + data + '-';
             }]
         });
+        $rootScope.$apply();
         expect(requests[0].requestBody).toBe('-*42*-');
     });
 
@@ -308,6 +331,7 @@ describe('$http', function() {
             url: 'http://teropa.info',
             data: 42
         });
+        $rootScope.$apply();
         expect(requests[0].requestBody).toBe('*42*');
     });
 
@@ -327,6 +351,7 @@ describe('$http', function() {
                 'content-type': 'text/emphasized'
             }
         });
+        $rootScope.$apply();
         expect(requests[0].requestBody).toBe('*42*');
     });
 
@@ -340,6 +365,7 @@ describe('$http', function() {
         }).then(function(r) {
             response = r;
         });
+        $rootScope.$apply();
         requests[0].respond(200, {'Content-Type': 'text/plain'}, 'Hello');
         expect(response.data).toEqual('*Hello*');
     });
@@ -359,6 +385,7 @@ describe('$http', function() {
             response = r;
         });
 
+        $rootScope.$apply();
         requests[0].respond(200, {'Content-Type': 'text/decorated'}, 'Hello');
         expect(response.data).toEqual('*Hello*');
     });
@@ -373,6 +400,8 @@ describe('$http', function() {
         }).then(function(r) {
             response = r;
         });
+
+        $rootScope.$apply();
         requests[0].respond(200, {'Content-Type': 'text/plain'}, 'Hello');
         expect(response.data).toEqual('*Hello*');
     });
@@ -389,6 +418,7 @@ describe('$http', function() {
             response = r;
         });
 
+        $rootScope.$apply();
         requests[0].respond(401, {'Content-Type': 'text/plain'}, 'Fail');
         expect(response.data).toEqual('*Fail*');
     });
@@ -409,8 +439,541 @@ describe('$http', function() {
             response = r;
         });
 
+        $rootScope.$apply();
         requests[0].respond(401, {'Content-Type': 'text/plain'}, 'Fail');
         expect(response.data).toEqual('unauthorized');
+    });
+
+    it('serializes object data to JSON for requests', function() {
+        $http({
+            method: 'POST',
+            url: 'http://teropa.info',
+            data: {aKey: 42}
+        });
+
+        $rootScope.$apply();
+        expect(requests[0].requestBody).toBe('{"aKey":42}');
+    });
+
+    it('serializes array data to JSON for requests', function() {
+        $http({
+            method: 'POST',
+            url: 'http://teropa.info',
+            data: [1, 'two', 3]
+        });
+
+        $rootScope.$apply();
+        expect(requests[0].requestBody).toBe('[1,"two",3]');
+    });
+
+    it('does not serialize blobs for requests', function() {
+        var blob;
+        if (window.Blob) {
+            blob = new Blob(['hello']);
+        } else {
+            var BlobBuilder = window.BlobBuilder || window.WebKitBlobBuilder ||
+                window.MozBlobBuilder || window.MSBlobBuilder;
+            var bb = new BlobBuilder();
+            bb.append('hello');
+            blob = bb.getBlob('text/plain');
+        }
+        $http({
+            method: 'POST',
+            url: 'http://teropa.info',
+            data: blob
+        });
+
+        $rootScope.$apply();
+        expect(requests[0].requestBody).toBe(blob);
+    });
+
+    it('does not serialize form data for requests', function() {
+        var formData = new FormData();
+        formData.append('aField', 'aValue');
+        $http({
+            method: 'POST',
+            url: 'http://teropa.info',
+            data: formData
+        });
+
+        $rootScope.$apply();
+        expect(requests[0].requestBody).toBe(formData);
+    });
+
+    it('parses JSON data for JSON responses', function() {
+        var response;
+        $http({
+            method: 'GET',
+            url: 'http://teropa.info'
+        }).then(function(r) {
+            response = r;
+        });
+
+        $rootScope.$apply();
+
+        requests[0].respond(
+            200,
+            {'Content-Type': 'application/json'},
+            '{"message":"hello"}'
+        );
+
+        expect(_.isObject(response.data)).toBe(true);
+        expect(response.data.message).toBe('hello');
+    });
+
+    it('parses a JSON object response without content type', function() {
+        var response;
+        $http({
+            method: 'GET',
+            url: 'http://teropa.info'
+        }).then(function(r) {
+            response = r;
+        });
+
+        $rootScope.$apply();
+
+        requests[0].respond(200, {}, '{"message":"hello"}');
+        expect(_.isObject(response.data)).toBe(true);
+        expect(response.data.message).toBe('hello');
+    });
+
+    it('parses a JSON array response without content type', function() {
+        var response;
+        $http({
+            method: 'GET',
+            url: 'http://teropa.info'
+        }).then(function(r) {
+            response = r;
+        });
+
+        $rootScope.$apply();
+
+        requests[0].respond(200, {}, '[1, 2, 3]');
+        expect(_.isArray(response.data)).toBe(true);
+        expect(response.data).toEqual([1, 2, 3]);
+    });
+
+    it('does not choke on response resembling JSON but not valid', function() {
+        var response;
+        $http({
+            method: 'GET',
+            url: 'http://teropa.info'
+        }).then(function(r) {
+            response = r;
+        });
+
+        $rootScope.$apply();
+
+        requests[0].respond(200, {}, '{1, 2, 3]');
+        expect(response.data).toEqual('{1, 2, 3]');
+    });
+
+    it('does not try to parse interpolation expr as JSON', function() {
+        var response;
+        $http({
+            method: 'GET',
+            url: 'http://teropa.info'
+        }).then(function(r) {
+            response = r;
+        });
+        $rootScope.$apply();
+
+        requests[0].respond(200, {}, '{{expr}}');
+        expect(response.data).toEqual('{{expr}}');
+    });
+
+    it('adds params to URL', function() {
+        $http({
+            url: 'http://teropa.info',
+            params: {
+                a: 42
+            }
+        });
+        $rootScope.$apply();
+
+        expect(requests[0].url).toBe('http://teropa.info?a=42');
+    });
+
+    it('adds additional params to URL', function() {
+        $http({
+            url: 'http://teropa.info?a=42',
+            params: {
+                b: 42
+            }
+        });
+        $rootScope.$apply();
+
+        expect(requests[0].url).toBe('http://teropa.info?a=42&b=42');
+    });
+
+    it('escapes url characters in params', function() {
+        $http({
+            url: 'http://teropa.info',
+            params: {
+                '==': '&&'
+            }
+        });
+        $rootScope.$apply();
+
+        expect(requests[0].url).toBe('http://teropa.info?%3D%3D=%26%26');
+    });
+
+    it('does not attach null or undefined params', function() {
+        $http({
+            url: 'http://teropa.info',
+            params: {
+                a: null,
+                b: undefined
+            }
+        });
+        $rootScope.$apply();
+
+        expect(requests[0].url).toBe('http://teropa.info');
+    });
+
+    it('attaches multiple params from arrays', function() {
+        $http({
+            url: 'http://teropa.info',
+            params: {
+                a: [42, 43]
+            }
+        });
+        $rootScope.$apply();
+
+        expect(requests[0].url).toBe('http://teropa.info?a=42&a=43');
+    });
+
+    it('serializes objects to json', function() {
+        $http({
+            url: 'http://teropa.info',
+            params: {
+                a: {b: 42}
+            }
+        });
+        $rootScope.$apply();
+
+        expect(requests[0].url).toBe('http://teropa.info?a=%7B%22b%22%3A42%7D');
+    });
+
+    it('serializes dates to ISO strings', function() {
+        $http({
+            url: 'http://teropa.info',
+            params: {
+                a: new Date(2015, 0, 1, 12, 0, 0)
+            }
+        });
+        $rootScope.$apply();
+
+        expect(/\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}/.test(requests[0].url)).toBeTruthy();
+    });
+
+    it('allows substituting param serializer', function() {
+        $http({
+            url: 'http://teropa.info',
+            params: {
+                a: 42,
+                b: 43
+            },
+            paramSerializer: function(params) {
+                return _.map(params, function(v, k) {
+                    return k + '=' + v + 'lol';
+                }).join('&');
+            }
+        });
+        $rootScope.$apply();
+
+        expect(requests[0].url).toEqual('http://teropa.info?a=42lol&b=43lol');
+    });
+
+    it('allows substituting param serializer through DI', function() {
+        var injector = createInjector(['ng', function($provide) {
+            $provide.factory('mySpecialSerializer', function() {
+                return function(params) {
+                    return _.map(params, function(v, k) {
+                        return k + '=' + v + 'lol';
+                    }).join('&');
+                };
+            });
+        }]);
+        injector.invoke(function($http, $rootScope) {
+            $http({
+                url: 'http://teropa.info',
+                params: {
+                    a: 42,
+                    b: 43
+                },
+                paramSerializer: 'mySpecialSerializer'
+            });
+            $rootScope.$apply();
+            expect(requests[0].url)
+                .toEqual('http://teropa.info?a=42lol&b=43lol');
+        });
+    });
+
+    it('makes default param serializer available through DI', function() {
+        var injector = createInjector(['ng']);
+        injector.invoke(function($httpParamSerializer) {
+            var result = $httpParamSerializer({a: 42, b: 43});
+            expect(result).toEqual('a=42&b=43');
+        });
+    });
+
+    describe('JQ-like param serialization', function() {
+
+        it('is possible', function() {
+            $http({
+                url: 'http://teropa.info',
+                params: {
+                    a: 42,
+                    b: 43
+                },
+                paramSerializer: '$httpParamSerializerJQLike'
+            });
+            $rootScope.$apply();
+
+            expect(requests[0].url).toEqual('http://teropa.info?a=42&b=43');
+        });
+
+        it('uses square brackets in arrays', function() {
+            $http({
+                url: 'http://teropa.info',
+                params: {
+                    a: [42, 43]
+                },
+                paramSerializer: '$httpParamSerializerJQLike'
+            });
+            $rootScope.$apply();
+
+            expect(requests[0].url).toEqual('http://teropa.info?a%5B%5D=42&a%5B%5D=43');
+        });
+
+        it('uses square brackets in objects', function() {
+            $http({
+                url: 'http://teropa.info',
+                params: {
+                    a: {b: 42, c: 43}
+                },
+                paramSerializer: '$httpParamSerializerJQLike'
+            });
+            $rootScope.$apply();
+
+            expect(requests[0].url).toEqual('http://teropa.info?a%5Bb%5D=42&a%5Bc%5D=43');
+        });
+
+        it('supports nesting in objects', function() {
+            $http({
+                url: 'http://teropa.info',
+                params: {
+                    a: {b: {c: 42}}
+                },
+                paramSerializer: '$httpParamSerializerJQLike'
+            });
+            $rootScope.$apply();
+
+            expect(requests[0].url).toEqual('http://teropa.info?a%5Bb%5D%5Bc%5D=42');
+        });
+
+        it('appends array indexes when items are objects', function() {
+            $http({
+                url: 'http://teropa.info',
+                params: {
+                    a: [{b: 42}]
+                },
+                paramSerializer: '$httpParamSerializerJQLike'
+            });
+            $rootScope.$apply();
+
+            expect(requests[0].url).toEqual('http://teropa.info?a%5B0%5D%5Bb%5D=42');
+        });
+
+        it('supports shorthand method for GET', function() {
+            $http.get('http://teropa.info', {
+                params: {q: 42}
+            });
+            $rootScope.$apply();
+
+            expect(requests[0].url).toBe('http://teropa.info?q=42');
+            expect(requests[0].method).toBe('GET');
+        });
+
+        it('supports shorthand method for HEAD', function() {
+            $http.head('http://teropa.info', {
+                params: {q: 42}
+            });
+            $rootScope.$apply();
+
+            expect(requests[0].url).toBe('http://teropa.info?q=42');
+            expect(requests[0].method).toBe('HEAD');
+        });
+
+        it('supports shorthand method for DELETE', function() {
+            $http.delete('http://teropa.info', {
+                params: {q: 42}
+            });
+            $rootScope.$apply();
+
+            expect(requests[0].url).toBe('http://teropa.info?q=42');
+            expect(requests[0].method).toBe('DELETE');
+        });
+
+        it('supports shorthand method for POST with data', function() {
+            $http.post('http://teropa.info', 'data', {
+                params: {q: 42}
+            });
+            $rootScope.$apply();
+
+            expect(requests[0].url).toBe('http://teropa.info?q=42');
+            expect(requests[0].method).toBe('POST');
+            expect(requests[0].requestBody).toBe('data');
+        });
+
+        it('supports shorthand method for PUT with data', function() {
+            $http.put('http://teropa.info', 'data', {
+                params: {q: 42}
+            });
+            $rootScope.$apply();
+
+            expect(requests[0].url).toBe('http://teropa.info?q=42');
+            expect(requests[0].method).toBe('PUT');
+            expect(requests[0].requestBody).toBe('data');
+        });
+
+        it('supports shorthand method for PATCH with data', function() {
+            $http.patch('http://teropa.info', 'data', {
+                params: {q: 42}
+            });
+            $rootScope.$apply();
+
+            expect(requests[0].url).toBe('http://teropa.info?q=42');
+            expect(requests[0].method).toBe('PATCH');
+            expect(requests[0].requestBody).toBe('data');
+        });
+
+    });
+
+    it('allows attaching interceptor factories', function() {
+        var interceptorFactorySpy = jasmine.createSpy();
+        var injector = createInjector(['ng', function($httpProvider) {
+            $httpProvider.interceptors.push(interceptorFactorySpy);
+        }]);
+        $http = injector.get('$http');
+        expect(interceptorFactorySpy).toHaveBeenCalled();
+    });
+
+    it('uses DI to instantiate interceptors', function() {
+        var interceptorFactorySpy = jasmine.createSpy();
+        var injector = createInjector(['ng', function($httpProvider) {
+            $httpProvider.interceptors.push(['$rootScope', interceptorFactorySpy]);
+        }]);
+        $http = injector.get('$http');
+        var $rootScope = injector.get('$rootScope');
+        expect(interceptorFactorySpy).toHaveBeenCalledWith($rootScope);
+    });
+
+    it('allows referencing existing interceptor factories', function() {
+        var interceptorFactorySpy = jasmine.createSpy().and.returnValue({});
+        var injector = createInjector(['ng', function($provide, $httpProvider) {
+            $provide.factory('myInterceptor', interceptorFactorySpy);
+            $httpProvider.interceptors.push('myInterceptor');
+        }]);
+        $http = injector.get('$http');
+        expect(interceptorFactorySpy).toHaveBeenCalled();
+    });
+
+    it('allows intercepting requests', function() {
+        var injector = createInjector(['ng', function($httpProvider) {
+            $httpProvider.interceptors.push(function() {
+                return {
+                    request: function(config) {
+                        config.params.intercepted = true;
+                        return config;
+                    }
+                };
+            });
+        }]);
+        $http = injector.get('$http');
+        $rootScope = injector.get('$rootScope');
+        $http.get('http://teropa.info', {params: {}});
+        $rootScope.$apply();
+        expect(requests[0].url).toBe('http://teropa.info?intercepted=true');
+    });
+
+    it('allows returning promises from request intercepts', function() {
+        var injector = createInjector(['ng', function($httpProvider) {
+            $httpProvider.interceptors.push(function($q) {
+                return {
+                    request: function(config) {
+                        config.params.intercepted = true;
+                        return $q.when(config);
+                    }
+                };
+            }); }]);
+        $http = injector.get('$http');
+        $rootScope = injector.get('$rootScope');
+        $http.get('http://teropa.info', {params: {}});
+        $rootScope.$apply();
+        expect(requests[0].url).toBe('http://teropa.info?intercepted=true');
+    });
+
+    it('allows intercepting responses', function() {
+        var injector = createInjector(['ng', function($httpProvider) {
+            $httpProvider.interceptors.push(_.constant({
+                response: function(response) {
+                    response.intercepted = true;
+                    return response;
+                }
+            }));
+        }]);
+        $http = injector.get('$http');
+        $rootScope = injector.get('$rootScope');
+        var response;
+        $http.get('http://teropa.info').then(function(r) {
+            response = r;
+        });
+        $rootScope.$apply();
+        requests[0].respond(200, {}, 'Hello');
+        expect(response.intercepted).toBe(true);
+    });
+
+    it('allows intercepting request errors', function() {
+        var requestErrorSpy = jasmine.createSpy();
+        var injector = createInjector(['ng', function($httpProvider) {
+            $httpProvider.interceptors.push(_.constant({
+                request: function(config) {
+                    throw 'fail';
+                }
+            }));
+            $httpProvider.interceptors.push(_.constant({
+                requestError: requestErrorSpy
+            }));
+        }]);
+        $http = injector.get('$http');
+        $rootScope = injector.get('$rootScope');
+        $http.get('http://teropa.info');
+        $rootScope.$apply();
+        expect(requests.length).toBe(0);
+        expect(requestErrorSpy).toHaveBeenCalledWith('fail');
+    });
+
+    it('allows intercepting response errors', function() {
+        var responseErrorSpy = jasmine.createSpy();
+        var injector = createInjector(['ng', function($httpProvider) {
+            $httpProvider.interceptors.push(_.constant({
+                responseError: responseErrorSpy
+            }));
+            $httpProvider.interceptors.push(_.constant({
+                response: function() {
+                    throw 'fail';
+                }
+            }));
+        }]);
+        $http = injector.get('$http');
+        $rootScope = injector.get('$rootScope');
+        $http.get('http://teropa.info');
+        $rootScope.$apply();
+        requests[0].respond(200, {}, 'Hello');
+        $rootScope.$apply();
+        expect(responseErrorSpy).toHaveBeenCalledWith('fail');
     });
 
 });
