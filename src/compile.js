@@ -132,8 +132,8 @@ function $CompileProvider($provide) {
         }
     };
 
-    this.$get = ['$injector', '$parse', '$controller', '$rootScope',
-        function($injector, $parse, $controller, $rootScope) {
+    this.$get = ['$injector', '$parse', '$controller', '$rootScope', '$http',
+        function($injector, $parse, $controller, $rootScope, $http) {
 
         function Attributes(element) {
             this.$$element = element;
@@ -309,14 +309,19 @@ function $CompileProvider($provide) {
             };
         }
 
-        function applyDirectivesToNode(directives, compileNode, attrs) {
+        function applyDirectivesToNode(
+            directives, compileNode, attrs, previousCompileContext) {
+            previousCompileContext = previousCompileContext || {};
             var $compileNode = $(compileNode);
             var terminalPriority = -Number.MAX_VALUE;
             var terminal = false;
-            var preLinkFns = [], postLinkFns = [], controllers = {};
-            var newScopeDirective, newIsolateScopeDirective;
-            var templateDirective;
-            var controllerDirectives;
+            var preLinkFns = previousCompileContext.preLinkFns || [];
+            var postLinkFns = previousCompileContext.postLinkFns || [];
+            var controllers = {};
+            var newScopeDirective;
+            var newIsolateScopeDirective = previousCompileContext.newIsolateScopeDirective;
+            var templateDirective = previousCompileContext.templateDirective;
+            var controllerDirectives = previousCompileContext.controllerDirectives;
 
             function getControllers(require, $element) {
                 if (_.isArray(require)) {
@@ -379,7 +384,43 @@ function $CompileProvider($provide) {
                 }
             }
 
-            _.forEach(directives, function(directive) {
+            function compileTemplateUrl(
+                directives, $compileNode, attrs, previousCompileContext) {
+                var origAsyncDirective = directives.shift();
+                var derivedSyncDirective = _.extend(
+                    {},
+                    origAsyncDirective,
+                    {templateUrl: null}
+                );
+                var templateUrl = _.isFunction(origAsyncDirective.templateUrl) ?
+                    origAsyncDirective.templateUrl($compileNode, attrs) :
+                    origAsyncDirective.templateUrl;
+                var afterTemplateNodeLinkFn, afterTemplateChildLinkFn;
+                var linkQueue = [];
+                $compileNode.empty();
+                $http.get(templateUrl).success(function(template) {
+                    directives.unshift(derivedSyncDirective);
+                    $compileNode.html(template);
+                    afterTemplateNodeLinkFn = applyDirectivesToNode(
+                        directives, $compileNode, attrs, previousCompileContext);
+                    afterTemplateChildLinkFn = compileNodes($compileNode[0].childNodes);
+                    _.forEach(linkQueue, function(linkCall) {
+                        afterTemplateNodeLinkFn(
+                        afterTemplateChildLinkFn, linkCall.scope, linkCall.linkNode);
+                    });
+                    linkQueue = null;
+                });
+
+                return function delayedNodeLinkFn(_ignoreChildLinkFn, scope, linkNode) {
+                    if (linkQueue) {
+                        linkQueue.push({scope: scope, linkNode: linkNode});
+                    } else {
+                        afterTemplateNodeLinkFn(afterTemplateChildLinkFn, scope, linkNode);
+                    }
+                };
+            }
+
+            _.forEach(directives, function(directive, i) {
                 if (directive.$$start) {
                     $compileNode = groupScan(compileNode, directive.$$start, directive.$$end);
                 }
@@ -388,7 +429,7 @@ function $CompileProvider($provide) {
                     return false;
                 }
 
-                if (directive.scope) {
+                if (directive.scope && !directive.templateUrl) {
                     if (_.isObject(directive.scope)) {
                         if (newIsolateScopeDirective || newScopeDirective) {
                             throw 'Multiple directives asking for new/inherited scope';
@@ -402,7 +443,34 @@ function $CompileProvider($provide) {
                     }
                 }
 
-                if (directive.compile) {
+                if (directive.template) {
+                    if (templateDirective) {
+                        throw 'Multiple directives asking for template';
+                    }
+                    templateDirective = directive;
+                    $compileNode.html(_.isFunction(directive.template) ?
+                        directive.template($compileNode, attrs) :
+                        directive.template);
+                }
+                if (directive.templateUrl) {
+                    if (templateDirective) {
+                        throw 'Multiple directives asking for template';
+                    }
+                    templateDirective = directive;
+                    nodeLinkFn = compileTemplateUrl(
+                        _.drop(directives, i),
+                        $compileNode,
+                        attrs,
+                        {
+                            templateDirective: templateDirective,
+                            newIsolateScopeDirective: newIsolateScopeDirective,
+                            controllerDirectives: controllerDirectives,
+                            preLinkFns: preLinkFns,
+                            postLinkFns: postLinkFns
+                        }
+                    );
+                    return false;
+                } else if (directive.compile) {
                     var linkFn = directive.compile($compileNode, attrs);
                     var isolateScope = (directive === newIsolateScopeDirective);
                     var attrStart = directive.$$start;
@@ -415,13 +483,6 @@ function $CompileProvider($provide) {
                         addLinkFns(
                             linkFn.pre, linkFn.post, attrStart, attrEnd, isolateScope, require);
                     }
-                }
-                if (directive.template) {
-                    if (templateDirective) {
-                        throw 'Multiple directives asking for template';
-                    }
-                    templateDirective = directive;
-                    $compileNode.html(directive.template);
                 }
                 if (directive.terminal) {
                     terminal = true;
@@ -574,7 +635,13 @@ function $CompileProvider($provide) {
                 });
 
                 if (childLinkFn) {
-                    childLinkFn(scope, linkNode.childNodes);
+                    var scopeToChild = scope;
+                    if (newIsolateScopeDirective &&
+                        (newIsolateScopeDirective.template ||
+                        newIsolateScopeDirective.templateUrl === null)) {
+                        scopeToChild = isolateScope;
+                    }
+                    childLinkFn(scopeToChild, linkNode.childNodes);
                 }
 
                 _.forEachRight(postLinkFns, function(linkFn) {
